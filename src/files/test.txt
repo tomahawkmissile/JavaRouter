@@ -1,0 +1,65 @@
+File file;
+	
+	public XmlProcessor(File file) {
+		this.file=file;
+	}
+	public List<String> readLines() {
+		List<String> lines = new ArrayList<String>();
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(file));
+			String line;
+			while((line=reader.readLine())!=null) {
+				lines.add(line);
+			}
+			reader.close();
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
+		return lines;
+	}
+	public String sanitizeXmlString(String input) {
+		String tmp=input;
+		if(input.endsWith(">")) {
+			tmp=tmp.substring(0, tmp.indexOf(">"));
+		}
+		if(input.startsWith("<")) {
+			tmp=tmp.substring(1,tmp.length());
+		}
+		return tmp;
+	}
+	public void generateElementFromLine(String line) {
+		if(line.startsWith("/")) {
+			line=line.replaceFirst("/", "");
+		}
+		if(line.endsWith("/")) {
+			line=line.substring(0,line.lastIndexOf("/"));
+		}
+		List<String> list = new ArrayList<String>();
+		Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(line);
+		while (m.find()) {
+			list.add(m.group(1)); // Add .replace("\"", "") to remove surrounding quotes.
+		}
+		Map<String,String> args = new HashMap<String,String>();
+		for(String s:list.subList(1, list.size())) {
+			String[] split = s.split("=");
+			if(split.length>1) {
+				args.put(split[0], split[1]);
+			} else {
+				args.put(split[0], null);
+			}
+		}
+		Element e = new Element(list.get(0),args);
+		Registry.getByName(Registry.ELEMENTS).addRegister(e.getName(), e);
+	}
+	public void iterateLines(List<String> lines) {
+		XmlPath path = new XmlPath();
+		for(int i=0;i<lines.size();i++) {
+			String line = this.sanitizeXmlString(lines.get(i));
+			if(line.indexOf(1)=='/') {
+				path.removeLast();
+			} else {
+				this.generateElementFromLine(line);
+			}
+		}
+	}
